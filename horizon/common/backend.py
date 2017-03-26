@@ -13,7 +13,6 @@ from django.db import IntegrityError
 from horizon.common.models import ExternalProfile
 from keystoneclient.v2_0 import client as keystone_client
 from openstack_auth.backend import KeystoneBackend
-from weibo import APIClient
 
 
 LOG = logging.getLogger(__name__)

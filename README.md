@@ -41,16 +41,23 @@ Add to INSTALLED_APPS:
 	'horizon.linkedin',
 ```
 
-Add to AUTHENTICATION_BACKENDS (place it first other backends):
+Add to AUTHENTICATION_BACKENDS (place it before other backends):
 ```
 	'horizon.common.backend.ExternalBackend'
 ```
 Add these lines:
 
 ```
-AUTH_PROFILE_MODULE = 'horizon.common.backend.ExternalBackend'
+AUTH_PROFILE_MODULE = 'horizon.common.ExternalProfile'
 AUTH_USER_MODEL = 'auth.User'
 ```
+
+Add the urls:
+```
+	url(r'facebook/', include('horizon.facebook.urls')),
+	url(r'linkedin/', include('horizon.linkedin.urls')),
+```
+
 Now, sync the database:
 
 ```
