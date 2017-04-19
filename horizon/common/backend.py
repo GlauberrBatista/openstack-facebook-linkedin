@@ -130,9 +130,13 @@ class ExternalBackend:
 		return dict(user_id=linkedin_id, user_email=linkedin_email,
 					access_token=access_token, valid=valid)
 
-	def authenticate(self, code=None, provider=None, request=None):
+	def authenticate(self, **kwargs):
+		#self, code=None, provider=None, request=None):
 		""" Reads in a code and asks Provider if it's valid and
 		what user it points to. """
+		code = kwargs['code']
+		provider = kwargs['provider']
+		request = kwargs['request']
 		keystone = KeystoneBackend()
 		self.keystone = keystone
 		try:
