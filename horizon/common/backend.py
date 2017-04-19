@@ -25,7 +25,7 @@ class ExternalBackend:
 									  tenant_name=settings.ADMIN_TENANT,
 									  auth_url=settings.OPENSTACK_KEYSTONE_URL)
 
-	def _get_facebook_profile(self, code=None, user_id=None, request=None):
+	def _get_facebook_profile(self, code=None, request=None):
 		redirect_uri = request.build_absolute_uri('authentication_callback')
 		args = {
 			'code': code,
@@ -77,7 +77,7 @@ class ExternalBackend:
 
 		return dict(user_id=facebook_id, user_email=facebook_email, access_token=access_token, valid=valid)
 
-	def _get_linkedin_profile(self, code=None, user_id=None, request=None):
+	def _get_linkedin_profile(self, code=None, request=None):
 		redirect_uri = request.build_absolute_uri('authentication_callback')
 		args = {
 			'code': code,
@@ -130,8 +130,7 @@ class ExternalBackend:
 		return dict(user_id=linkedin_id, user_email=linkedin_email,
 					access_token=access_token, valid=valid)
 
-	def authenticate(self, code=None, group=None, user_id=None, provider=None,
-					 request=None):
+	def authenticate(self, code=None, provider=None, request=None):
 		""" Reads in a code and asks Provider if it's valid and
 		what user it points to. """
 		keystone = KeystoneBackend()
@@ -141,11 +140,11 @@ class ExternalBackend:
 		except AttributeError:
 			LOG.warn("Need to define _get_%s_profile function." % provider)
 			return
-		user_profile = profile_handle(code=code, user_id=user_id, request=request)
+		user_profile = profile_handle(code=code, request=request)
 		if not user_profile:
 			return
 		if not user_profile['valid']:
-			msg = "Failed to login, you are not in %s group: %s" % (provider, group)
+			msg = "Failed to login, you are not in %s group." % provider
 			messages.error(request, msg)
 			return
 
