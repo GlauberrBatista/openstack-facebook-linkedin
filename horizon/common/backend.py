@@ -71,10 +71,6 @@ class ExternalBackend:
 			LOG.warn("Facebook user validate error: %s", e)
 			return None
 
-		#valid = False
-		#if settings.LINKEDIN_GROUP_ID in group_ids:
-		#	valid = True
-
 		return dict(user_id=facebook_id, user_email=facebook_email, access_token=access_token, valid=valid)
 
 	def _get_linkedin_profile(self, code=None, request=None):
@@ -130,12 +126,10 @@ class ExternalBackend:
 		return dict(user_id=linkedin_id, user_email=linkedin_email,
 					access_token=access_token, valid=valid)
 
-	def authenticate(self, code, **kwargs):
-		#self, code=None, provider=None, request=None):
+	def authenticate(self, request=None, provider=None):
 		""" Reads in a code and asks Provider if it's valid and
 		what user it points to. """
-		provider = kwargs['provider']
-		request = kwargs['request']
+		code = request.GET.get('code')
 		keystone = KeystoneBackend()
 		self.keystone = keystone
 		try:
@@ -206,7 +200,7 @@ class ExternalBackend:
 				external_user.save()
 			except Exception as e:
 				LOG.warn("Error creating user: %s, error: %s" % (username, e))
-				return
+				return None
 		try:
 			user = keystone.authenticate(request=request,
 									username=username,
@@ -216,6 +210,7 @@ class ExternalBackend:
 			return user
 		except Exception as e:
 			messages.error(request, "Failed to login: %s" % e)
+			return None
 
 	def get_user(self, user_id):
 		""" Just returns the user of a given ID. """

@@ -23,8 +23,7 @@ def login(request):
 
 def authentication_callback(request):
 	""" Second step of the login process. It reads in a code from Facebook, then redirects back to the home page. """
-	code = request.GET.get('code')
-	user = authenticate(code, provider='facebook', request=request)
+	user = authenticate(request=request, provider='facebook')
 	try:
 		auth_login(request, user)
 	except Exception as e:

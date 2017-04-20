@@ -28,7 +28,7 @@ def authentication_callback(request):
 	""" Second step of the login process.
 	It reads in a code from LinkedIn, then redirects back to the home page. """
 	code = request.GET.get('code')
-	user = authenticate(code=code, provider='linkedin', request=request)
+	user = authenticate(request=request, provider='linkedin')
 	try:
 		auth_login(request, user)
 	except AttributeError:
