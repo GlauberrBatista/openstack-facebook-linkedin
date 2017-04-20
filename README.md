@@ -17,6 +17,7 @@ Add the following lines to /etc/openstack-dashboard/local_settings
 FACEBOOK_APP_ID = ""
 FACEBOOK_APP_SECRET = ""
 FACEBOOK_SCOPE = "email"
+FACEBOOK_GROUP_ID = ""
 
 LINKEDIN_APP_KEY = ""
 LINKEDIN_APP_SECRET = ""
@@ -49,10 +50,9 @@ Add these lines:
 
 ```
 AUTH_PROFILE_MODULE = 'horizon.common.ExternalProfile'
-AUTH_USER_MODEL = 'auth.User'
 ```
 
-Add the urls:
+Add the urls into /usr/share/openstack-dashboard/openstack_dashboard/urls.py:
 ```
 	url(r'facebook/', include('horizon.facebook.urls')),
 	url(r'linkedin/', include('horizon.linkedin.urls')),
@@ -61,5 +61,5 @@ Add the urls:
 Now, sync the database:
 
 ```
-/usr/share/openstack-dashboard/./manage.py sync_db
+/usr/share/openstack-dashboard/./manage.py syncdb
 ```

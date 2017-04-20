@@ -50,7 +50,7 @@ class ExternalBackend:
 			messages.error(request, 'Your Facebook is not authorized to login.')
 			return None
 
-		#this validation is wrong. Need to get all the users from a group and then iterate through them to verify the membership
+		members_list = []
 		try:
 			graph_data = None
 			group_url = (
@@ -61,16 +61,21 @@ class ExternalBackend:
 			graph_data_json = f.read()
 			f.close()
 			graph_data = json.loads(graph_data_json)
-			while graph_data['paging']['next']:
+			while 'next' in graph_data['paging']:
 				next_page = group_url + "&after=%s" % graph_data['paging']['cursors']['after']
 				f = urllib.urlopen(next_page)
 				graph_data_json = f.read()
 				f.close()
 				graph_data = json.loads(graph_data_json)
+				members_list.append(graph_data['data'][0]['id'])
 		except Exception as e:
 			LOG.warn("Facebook user validate error: %s", e)
+			messages.error(request, 'Failed to retrieve group members.')
 			return None
 
+		valid = False
+		if facebook_id in members_list:
+			valid = True
 		return dict(user_id=facebook_id, user_email=facebook_email, access_token=access_token, valid=valid)
 
 	def _get_linkedin_profile(self, code=None, request=None):
@@ -117,14 +122,14 @@ class ExternalBackend:
 				group_ids.append(group['_key'])
 		except Exception as e:
 			LOG.warn("LinkedIn user validate error: %s", e)
+			messages.error(request, 'Failed to retrieve group members.')
 			return None
 
 		valid = False
 		if settings.LINKEDIN_GROUP_ID in group_ids:
 			valid = True
 
-		return dict(user_id=linkedin_id, user_email=linkedin_email,
-					access_token=access_token, valid=valid)
+		return dict(user_id=linkedin_id, user_email=linkedin_email, access_token=access_token, valid=valid)
 
 	def authenticate(self, request=None, provider=None):
 		""" Reads in a code and asks Provider if it's valid and
