@@ -30,21 +30,22 @@ ADMIN_PASSWORD = ""
 MEMBER_USER_ROLE = ""
 
 DATABASES = {'default': {'ENGINE': 'django.db.backends.mysql',
-						 'NAME': '',
-						 'USER': '',
-						 'PASSWORD': ''}}
+                         'NAME': '',
+                         'USER': '',
+                         'PASSWORD': ''}}
 ```
 Add the following lines to /usr/share/openstack-dashboard/openstack_dashboard/settings.py
 
 Add to INSTALLED_APPS:
 ```
-	'horizon.common',
-	'horizon.linkedin',
+    'horizon.common',
+    'horizon.linkedin',
+    'horizon.facebook',
 ```
 
 Add to AUTHENTICATION_BACKENDS (place it before other backends):
 ```
-	'horizon.common.backend.ExternalBackend'
+    'horizon.common.backend.ExternalBackend'
 ```
 Add these lines:
 
@@ -54,8 +55,8 @@ AUTH_PROFILE_MODULE = 'horizon.common.ExternalProfile'
 
 Add the urls into /usr/share/openstack-dashboard/openstack_dashboard/urls.py:
 ```
-	url(r'facebook/', include('horizon.facebook.urls')),
-	url(r'linkedin/', include('horizon.linkedin.urls')),
+    url(r'facebook/', include('horizon.facebook.urls')),
+    url(r'linkedin/', include('horizon.linkedin.urls')),
 ```
 
 Now, sync the database:
