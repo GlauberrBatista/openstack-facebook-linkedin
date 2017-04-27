@@ -10,6 +10,7 @@ class ExternalProfile(models.Model):
     #user = models.OneToOneField(User)
     #user = settings.AUTH_USER_MODEL
     user = models.CharField(max_length=32)
+    #user = models.OneToOneField(User, on_delete=models.CASCADE)
     external_id = models.CharField(max_length=150)
     access_token = models.CharField(max_length=1024)
     password =  models.CharField(max_length=150)

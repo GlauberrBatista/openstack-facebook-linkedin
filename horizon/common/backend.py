@@ -160,16 +160,21 @@ class ExternalBackend:
 		username = "%s_%s" % (provider, external_id)
 		tenant_name = username
 		password = ""
+
+
 		keystone_admin = self._admin_client()
 		keystone_user_list = keystone_admin.users.list()
-		for i in keystone_user_list:
-			if username == i.name:
-				user = keystone_admin.users.get(i.id)
-				external_user = ExternalProfile.objects.get(user=user.id)
-				password = external_user.password
-				LOG.info("User %s found" % user.id)
-				break
-		else: 
+
+		try:
+			external_user = ExternalProfile.objects.get(external_id=external_id)
+			external_user.access_token = access_token
+			password = external_user.password
+			external_user.save()
+			user = keystone_admin.users.get(external_user.user)
+			LOG.info("User %s found" % user.id)
+
+		except ExternalProfile.DoesNotExist:
+			LOG.info("User %s not found. Creating..." % username)
 			try:
 				LOG.info('Creating new account for user %s' % username)
 				keystone_admin = self._admin_client()
@@ -177,7 +182,6 @@ class ExternalBackend:
 
 				project = keystone_admin.projects.create(username, 'default', description="External account", enabled=True)
 				user = keystone_admin.users.create(username, project=project.id, password=password, email=external_email, enabled=True)
-				LOG.info("AAAAAA: %s" % dir(keystone_admin))
 				keystone_admin.roles.grant(settings.MEMBER_USER_ROLE, user=user.id, project=project.id)
 				
 				LOG.info('Creating external profile for user %s' % username)
@@ -194,6 +198,7 @@ class ExternalBackend:
 		except Exception as e:
 			messages.error(request, "Failed to login: %s" % e)
 			return None
+		return test_user
 
 	def get_user(self, user_id):
 		""" Just returns the user of a given ID. """
