@@ -6,7 +6,7 @@ import random
 import urllib
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from openstack_auth.user import User
 from django.contrib import messages
 from django.db import IntegrityError
 
@@ -61,6 +61,7 @@ class ExternalBackend:
 			graph_data_json = f.read()
 			f.close()
 			graph_data = json.loads(graph_data_json)
+			members_list.append(graph_data['data'][0]['id'])
 			while 'next' in graph_data['paging']:
 				next_page = group_url + "&after=%s" % graph_data['paging']['cursors']['after']
 				f = urllib.urlopen(next_page)
@@ -162,19 +163,22 @@ class ExternalBackend:
 			external_user = ExternalProfile.objects.get(external_id=external_id)
 			user = external_user.user
 			# Update access_token
-			external_user.access_token = access_token
+			#external_user.access_token = access_token
 			password = external_user.password
-			external_user.save()
+			#external_user.save()
 			LOG.info("User: %s exists" % username)
 		except ExternalProfile.DoesNotExist:
 			LOG.info("User: %s not exists, creating..." % username)
 			# No existing user
 			try:
+				# 1
 				user = User.objects.create_user(username, external_email)
 			except IntegrityError:
 				# Username already exists, make it unique
+				# 2
 				existing_user = User.objects.get(username=username)
 				existing_user.delete()
+				#1
 				user = User.objects.create_user(username, external_email)
 			user.save()
 
@@ -185,7 +189,6 @@ class ExternalBackend:
 				# Create the UserProfile
 				external_user = ExternalProfile(user=user,
 											external_id=external_id,
-											access_token=access_token,
 											password=password)
 				keystone_admin = self._admin_client()
 
