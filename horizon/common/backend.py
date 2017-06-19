@@ -11,8 +11,14 @@ from django.contrib import messages
 from django.db import IntegrityError
 
 from horizon.common.models import ExternalProfile
-from keystoneclient.v2_0 import client as keystone_client
+from keystoneclient.v3 import client as keystone_client
 from openstack_auth.backend import KeystoneBackend
+from openstack_auth.user import Token
+from openstack_auth.user import create_user_from_token
+from openstack_auth import exceptions
+from openstack_auth import user as auth_user
+from openstack_auth import utils
+
 
 
 LOG = logging.getLogger(__name__)
@@ -20,10 +26,7 @@ LOG = logging.getLogger(__name__)
 
 class ExternalBackend:
 	def _admin_client(self):
-		return  keystone_client.Client(username=settings.ADMIN_USER,
-									  password=settings.ADMIN_PASSWORD,
-									  tenant_name=settings.ADMIN_TENANT,
-									  auth_url=settings.OPENSTACK_KEYSTONE_URL)
+		return  keystone_client.Client(username=settings.ADMIN_USER, password=settings.ADMIN_PASSWORD, tenant_name=settings.ADMIN_TENANT, auth_url=settings.OPENSTACK_KEYSTONE_URL)
 
 	def _get_facebook_profile(self, code=None, request=None):
 		redirect_uri = request.build_absolute_uri('authentication_callback')
@@ -158,8 +161,12 @@ class ExternalBackend:
 		username = "%s_%s" % (provider, external_id)
 		tenant_name = username
 		password = ""
+
+
+		keystone_admin = self._admin_client()
+		keystone_user_list = keystone_admin.users.list()
+
 		try:
-			# Try and find existing user
 			external_user = ExternalProfile.objects.get(external_id=external_id)
 			user = external_user.user
 			# Update access_token
@@ -168,8 +175,7 @@ class ExternalBackend:
 			#external_user.save()
 			LOG.info("User: %s exists" % username)
 		except ExternalProfile.DoesNotExist:
-			LOG.info("User: %s not exists, creating..." % username)
-			# No existing user
+			LOG.info("User %s not found. Creating..." % username)
 			try:
 				# 1
 				user = User.objects.create_user(username, external_email)
@@ -191,40 +197,36 @@ class ExternalBackend:
 											external_id=external_id,
 											password=password)
 				keystone_admin = self._admin_client()
+				password = "".join([random.choice(string.ascii_lowercase + string.digits) for i in range(8)])
 
-				tenant = keystone_admin.tenants.create(tenant_name,
-													  "Auto created account",
-													   True)
-				user = keystone_admin.users.create(tenant_name,
-												   password,
-												   external_email,
-												   tenant.id,
-												   True)
-				member_user_role = settings.MEMBER_USER_ROLE
-				keystone_admin.roles.add_user_role(user.id,
-												   member_user_role,
-												   tenant.id)
-				external_user.tenant_id = tenant.id
+				project = keystone_admin.projects.create(username, 'default', description="External account", enabled=True)
+				user = keystone_admin.users.create(username, project=project.id, password=password, email=external_email, enabled=True)
+				keystone_admin.roles.grant(settings.MEMBER_USER_ROLE, user=user.id, project=project.id)
+				
+				LOG.info('Creating external profile for user %s' % username)
+				external_user = ExternalProfile(user=user.id, external_id=external_id, access_token=access_token, password=password, project_id=project.id)
+				LOG.info(external_user.user)
 				external_user.save()
 			except Exception as e:
 				LOG.warn("Error creating user: %s, error: %s" % (username, e))
 				return None
 		try:
-			user = keystone.authenticate(request=request,
-									username=username,
-									password=password,
-									tenant=None,
-									auth_url=settings.OPENSTACK_KEYSTONE_URL)
-			return user
+			domain_name = keystone_admin.domains.get(user.domain_id).name
+			auth_user = keystone.authenticate(request=request, username=username, password=password, auth_url=settings.OPENSTACK_KEYSTONE_URL, user_domain_name=domain_name)
+			return auth_user
 		except Exception as e:
 			messages.error(request, "Failed to login: %s" % e)
 			return None
+		return test_user
 
 	def get_user(self, user_id):
 		""" Just returns the user of a given ID. """
-		keystone = KeystoneBackend()
-		keystone.request = self.request
+		try:
+			keystone = KeystoneBackend()
+			keystone.request = self.request
+		except:
+			return None
 		return keystone.get_user(user_id)
 
 	supports_object_permissions = False
-	supports_anonymous_user = True
+	supports_anonymous_user = False
