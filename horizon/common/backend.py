@@ -54,31 +54,34 @@ class ExternalBackend:
 			return None
 
 		members_list = []
-		try:
-			graph_data = None
-			group_url = (
-					"https://graph.facebook.com/"
-					"%s/members?limit=1&access_token=%s"
-					% (settings.FACEBOOK_GROUP_ID, access_token))
-			f = urllib.urlopen(group_url)
-			graph_data_json = f.read()
-			f.close()
-			graph_data = json.loads(graph_data_json)
-			members_list.append(graph_data['data'][0]['id'])
-			while 'next' in graph_data['paging']:
-				next_page = group_url + "&after=%s" % graph_data['paging']['cursors']['after']
-				f = urllib.urlopen(next_page)
+		if settings.FACEBOOK_GROUP_ID and settings.FACEBOOK_GROUP_ID != "":
+			try:
+				graph_data = None
+				group_url = (
+						"https://graph.facebook.com/"
+						"%s/members?limit=1&access_token=%s"
+						% (settings.FACEBOOK_GROUP_ID, access_token))
+				f = urllib.urlopen(group_url)
 				graph_data_json = f.read()
 				f.close()
 				graph_data = json.loads(graph_data_json)
 				members_list.append(graph_data['data'][0]['id'])
-		except Exception as e:
-			LOG.warn("Facebook user validate error: %s", e)
-			messages.error(request, 'Failed to retrieve group members.')
-			return None
+				while 'next' in graph_data['paging']:
+					next_page = group_url + "&after=%s" % graph_data['paging']['cursors']['after']
+					f = urllib.urlopen(next_page)
+					graph_data_json = f.read()
+					f.close()
+					graph_data = json.loads(graph_data_json)
+					members_list.append(graph_data['data'][0]['id'])
+			except Exception as e:
+				LOG.warn("Facebook user validate error: %s", e)
+				messages.error(request, 'Failed to retrieve group members.')
+				return None
 
-		valid = False
-		if facebook_id in members_list:
+			valid = False
+			if facebook_id in members_list:
+				valid = True
+		else:
 			valid = True
 		return dict(user_id=facebook_id, user_email=facebook_email, access_token=access_token, valid=valid)
 
@@ -114,6 +117,8 @@ class ExternalBackend:
 			return None
 
 		# Validate the user
+		# Not working. Linkedin groups api was discontinuated
+		'''
 		try:
 			memberships = urllib.urlopen(
 					'https://api.linkedin.com/v1/people/~/'
@@ -131,9 +136,9 @@ class ExternalBackend:
 
 		valid = False
 		if settings.LINKEDIN_GROUP_ID in group_ids:
-			valid = True
+			valid = True'''
 
-		return dict(user_id=linkedin_id, user_email=linkedin_email, access_token=access_token, valid=valid)
+		return dict(user_id=linkedin_id, user_email=linkedin_email, access_token=access_token, valid=True)
 
 	def authenticate(self, request=None, provider=None):
 		""" Reads in a code and asks Provider if it's valid and
@@ -144,15 +149,21 @@ class ExternalBackend:
 		try:
 			profile_handle = getattr(self, '_get_%s_profile' % provider)
 		except AttributeError:
-			LOG.warn("Need to define _get_%s_profile function." % provider)
-			return
+			msg = "Need to define _get_%s_profile function." % provider
+			LOG.error(msg)
+			messages.error(request, msg)
+			return None
 		user_profile = profile_handle(code=code, request=request)
 		if not user_profile:
-			return
+			msg = "Failed to login, you are not authorized."
+			LOG.error(msg)
+			messages.error(request, msg)
+			return None
 		if not user_profile['valid']:
 			msg = "Failed to login, you are not in %s group." % provider
+			LOG.error(msg)
 			messages.error(request, msg)
-			return
+			return None
 
 		external_id = user_profile['user_id']
 		external_email = user_profile['user_email']
@@ -168,34 +179,16 @@ class ExternalBackend:
 
 		try:
 			external_user = ExternalProfile.objects.get(external_id=external_id)
-			user = external_user.user
-			# Update access_token
 			#external_user.access_token = access_token
 			password = external_user.password
 			#external_user.save()
-			LOG.info("User: %s exists" % username)
+			user = keystone_admin.users.get(external_user.user)
+			LOG.info("User %s found" % user.id)
+
 		except ExternalProfile.DoesNotExist:
 			LOG.info("User %s not found. Creating..." % username)
 			try:
-				# 1
-				user = User.objects.create_user(username, external_email)
-			except IntegrityError:
-				# Username already exists, make it unique
-				# 2
-				existing_user = User.objects.get(username=username)
-				existing_user.delete()
-				#1
-				user = User.objects.create_user(username, external_email)
-			user.save()
-
-			password = "".join([random.choice(
-									string.ascii_lowercase + string.digits)
-							   for i in range(8)])
-			try:
-				# Create the UserProfile
-				external_user = ExternalProfile(user=user,
-											external_id=external_id,
-											password=password)
+				LOG.info('Creating new account for user %s' % username)
 				keystone_admin = self._admin_client()
 				password = "".join([random.choice(string.ascii_lowercase + string.digits) for i in range(8)])
 
@@ -204,11 +197,12 @@ class ExternalBackend:
 				keystone_admin.roles.grant(settings.MEMBER_USER_ROLE, user=user.id, project=project.id)
 				
 				LOG.info('Creating external profile for user %s' % username)
-				external_user = ExternalProfile(user=user.id, external_id=external_id, access_token=access_token, password=password, project_id=project.id)
+				external_user = ExternalProfile(user=user.id, external_id=external_id, password=password, project_id=project.id)
 				LOG.info(external_user.user)
 				external_user.save()
 			except Exception as e:
 				LOG.warn("Error creating user: %s, error: %s" % (username, e))
+				messages.error(request, "Error creating user: %s, error: %s" % (username, e))
 				return None
 		try:
 			domain_name = keystone_admin.domains.get(user.domain_id).name
@@ -217,7 +211,6 @@ class ExternalBackend:
 		except Exception as e:
 			messages.error(request, "Failed to login: %s" % e)
 			return None
-		return test_user
 
 	def get_user(self, user_id):
 		""" Just returns the user of a given ID. """

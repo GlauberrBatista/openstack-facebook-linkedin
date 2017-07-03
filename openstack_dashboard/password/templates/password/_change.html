@@ -1,0 +1,23 @@
+{% extends "horizon/common/_modal_form.html" %}
+{% load i18n %}
+{% load url from future %}
+
+{% block modal-body-left %}
+{% if password %}
+		Your api password is: {{ password }}<br>
+		Changing your password has invalidated your session.<br>
+		You will be automatically logged out now, please log back in to continue.<br>
+{% else %}
+		Please submit the form to generate a new API password.
+{% endif %}
+{% endblock %}
+
+{% block modal-body-right %}
+	<h3>{% trans "Description:" %}</h3>
+	<p>{% trans "Change your password. We highly recommend you create a strong one. " %}</p>
+{% endblock %}
+
+{% block modal-footer %}
+	<button type="submit" class="btn btn-primary">{% trans "Request API password" %}</button>
+	{% if hide %}<a href="{% url 'horizon:settings:password:index' %}" class="btn secondary cancel close">{% trans "Cancel" %}</a>{% endif %}
+{% endblock %}

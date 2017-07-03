@@ -1,0 +1,36 @@
+	<style type="text/css">
+		.social, .social:hover, .social:active, .social:visited {
+			color: #fff;
+		}
+
+		.facebook {
+			background-color: #3b5998;
+		}
+
+		.facebook:hover {
+			background-color: #314b82;
+		}
+
+		.linkedin {
+			background-color: #0084bf;
+		}
+
+		.linkedin:hover {
+			background-color: #00608c;
+		}
+
+		.social i.fa-lg {
+			line-height: 1;
+		}
+	</style>
+	<fieldset>
+		<a href="{% url 'horizon.linkedin.views.login' %}" class="btn btn-lg btn-block social linkedin">
+			<i class="fa fa-linkedin fa-lg pull-left" aria-hidden="true"></i>
+			LinkedIn
+		</a>
+		<a href="{% url 'horizon.facebook.views.login' %}" class="btn btn-lg btn-block social facebook">
+			<i class="fa fa-facebook fa-lg pull-left" aria-hidden="true"></i>
+			Facebook
+		</a>
+		<p class="lead text-center"> OR </p>
+	</fieldset>
